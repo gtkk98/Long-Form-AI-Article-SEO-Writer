@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown';
 
 function App() {
   const [prompt, setPrompt] = useState("");
@@ -92,10 +93,19 @@ function App() {
             
             {articleStatus && (
               <div className="mt-4 text-sm text-gray-700">
-                <p><strong>Status:</strong> <span className="uppercase text-blue-600">{articleStatus.status}</span></p>
+                <p><strong>Status:</strong> <span className={`uppercase font-bold ${articleStatus.status === 'completed' ? 'text-green-600' : 'text-blue-600'}`}>{articleStatus.status}</span></p>
                 <p><strong>Prompt Saved:</strong> {articleStatus.prompt}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* NEW UI: The Rendered Article */}
+        {articleStatus && articleStatus.status === 'completed' && articleStatus.content && (
+          <div className="mt-8 p-8 bg-white border border-gray-200 rounded-xl shadow-sm">
+            <article className="prose prose-blue max-w-none">
+              <ReactMarkdown>{articleStatus.content}</ReactMarkdown>
+            </article>
           </div>
         )}
 

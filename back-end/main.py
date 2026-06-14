@@ -9,10 +9,20 @@ from dotenv import load_dotenv
 from database import engine, get_db, SessionLocal
 from google import genai
 
-# Load the secret environment variables securely
+# 1. Force load the environment variables
 load_dotenv()
 
-client = genai.Client()
+# 2. Grab the key and verify it exists
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    print("\n❌ SECURITY ALERT: GEMINI_API_KEY is empty or could not be read from your .env file!")
+else:
+    # Print just the first 5 characters so you can safely verify it's the right key without leaking it in logs
+    print(f"\n✅ SUCCESS: Gemini API Key loaded successfully! Starts with: {api_key[:5]}...")
+
+# 3. Explicitly pass the key to the client so it stops trying to use OAuth tokens
+client = genai.Client(api_key=api_key)
 
 app = FastAPI()
 
