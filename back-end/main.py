@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel 
 from sqlalchemy.orm import Session
 import models
@@ -8,6 +9,8 @@ import os
 from dotenv import load_dotenv
 from database import engine, get_db, SessionLocal
 from google import genai
+import schemas
+import security
 
 # 1. Force load the environment variables
 load_dotenv()
@@ -62,6 +65,45 @@ def generate_article(request: ArticleRequest, background_tasks: BackgroundTasks,
         "task_id": new_article.id,
         "message": "Saved to database successfully!"
     }
+    
+# ==========================================
+# AUTHENTICATION ENDPOINTS
+# ==========================================
+
+@app.post("/api/v1/auth/register", response_model=schemas.Token)
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # 1. Check if username is already taken
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username is already registered")
+    
+    # 2. Scramble the password and save to PostgreSQL
+    hashed_password = security.get_password_hash(user.password)
+    new_user = models.User(username=user.username, hashed_password=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # 3. Generate and return a JWT so the user is instantly logged in
+    access_token = security.create_access_token(data={"sub": new_user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/v1/auth/login", response_model=schemas.Token)
+def login_user(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm), db: Session = Depends(get_db)):
+    # 1. Search PostgreSQL for the requested user
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    
+    # 2. Verify existence AND password match using bcrypt
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 3. Forge a fresh JWT
+    access_token = security.create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
     
 def process_article_task(article_id: str):
     db = SessionLocal()
