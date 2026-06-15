@@ -219,3 +219,49 @@ def get_user_history(
     # Query PostgreSQL for articles where user_id matches the current user
     articles = db.query(models.Article).filter(models.Article.user_id == current_user.id).all()
     return articles
+
+# ==========================================
+# ARTICLE MANAGEMENT ENDPOINTS (DELETE & SAVE)
+# ==========================================
+
+@app.delete("/api/v1/articles/{article_id}")
+def delete_article(
+    article_id: str, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """Deletes an article, but guarantees it belongs to the logged-in user."""
+    article = db.query(models.Article).filter(
+        models.Article.id == article_id, 
+        models.Article.user_id == current_user.id
+    ).first()
+    
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found or unauthorized")
+        
+    db.delete(article)
+    db.commit()
+    return {"message": "Article deleted successfully"}
+
+
+@app.patch("/api/v1/articles/{article_id}/toggle-save")
+def toggle_save_article(
+    article_id: str, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """Flips the boolean is_saved flag back and forth (True/False)."""
+    article = db.query(models.Article).filter(
+        models.Article.id == article_id, 
+        models.Article.user_id == current_user.id
+    ).first()
+    
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found or unauthorized")
+        
+    # Flip the boolean value
+    article.is_saved = not article.is_saved
+    db.commit()
+    db.refresh(article)
+    
+    return {"is_saved": article.is_saved, "message": "Save status updated"}

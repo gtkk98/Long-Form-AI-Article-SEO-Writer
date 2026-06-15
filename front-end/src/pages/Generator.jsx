@@ -64,6 +64,7 @@ export default function Generator({ onNewGeneration }) {
           setArticleStatus(data);
           if (data.status === 'completed' || data.status === 'failed') {
             clearInterval(interval);
+            onNewGeneration();
           }
         }
       } catch (err) {
