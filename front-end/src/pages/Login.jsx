@@ -1,21 +1,65 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username.trim()) {
+    setErrorMsg("");
+    setIsLoading(true);
+
+    try {
+      let response;
+      
+      if (isRegistering) {
+        // FastAPI Registration expects JSON
+        response = await fetch('http://127.0.0.1:8001/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+      } else {
+        // FastAPI Login (OAuth2) expects Form Data
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+        
+        response = await fetch('http://127.0.0.1:8001/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Authentication failed");
+      }
+      
+      // SUCCESS! Save the JWT token to the browser's local storage
+      localStorage.setItem('token', data.access_token);
+      
+      // Tell App.jsx to change the screen
       onLoginSuccess(username);
+
+    } catch (error) {
+      setErrorMsg(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full relative bg-slate-950 flex items-center justify-center p-6 overflow-hidden">
       
-      {/* BULLETPROOF CSS ANIMATED BACKGROUND (Replaces Spline) */}
+      {/* Animated Background */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/20 blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
@@ -28,15 +72,24 @@ export default function Login({ onLoginSuccess }) {
             <Sparkles className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight">LexiFlow AI</h1>
-          <p className="text-sm text-slate-400 mt-1">Sign in to access your dashboard</p>
+          <p className="text-sm text-slate-400 mt-1">
+            {isRegistering ? "Create your new account" : "Sign in to access your dashboard"}
+          </p>
         </div>
+
+        {/* Error Message Display */}
+        {errorMsg && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 text-sm rounded-lg text-center">
+            {errorMsg}
+          </div>
+        )}
 
         <div className="space-y-4 mb-6">
           <div>
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1">Username</label>
             <input 
               type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter any name..."
+              placeholder="Enter username..."
               className="w-full border border-slate-700 rounded-xl px-4 py-3 bg-slate-900/50 text-sm outline-none text-white font-medium focus:border-blue-500 transition-colors placeholder:text-slate-600"
             />
           </div>
@@ -50,9 +103,26 @@ export default function Login({ onLoginSuccess }) {
           </div>
         </div>
 
-        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)]">
-          Sign In
+        <button 
+          type="submit" 
+          disabled={isLoading}
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] disabled:opacity-50"
+        >
+          {isLoading ? "Processing..." : (isRegistering ? "Create Account" : "Sign In")}
         </button>
+
+        <div className="mt-6 text-center">
+          <button 
+            type="button" 
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setErrorMsg("");
+            }}
+            className="text-sm text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            {isRegistering ? "Already have an account? Sign in" : "Need an account? Register here"}
+          </button>
+        </div>
       </form>
     </div>
   );

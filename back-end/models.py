@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -28,3 +29,5 @@ class Article(Base):
     
     # Establish the reverse relationship back to the User
     owner = relationship("User", back_populates="articles")
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

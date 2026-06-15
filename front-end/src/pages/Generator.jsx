@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
@@ -16,18 +17,29 @@ export default function Generator({ onNewGeneration }) {
     setCurrentTaskId(null);
 
     try {
+      // 1. Grab the token from local storage
+      const token = localStorage.getItem('token');
+
       const response = await fetch("http://127.0.0.1:8001/api/v1/articles/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // 2. Show the token to FastAPI!
+        },
         body: JSON.stringify({ prompt }),
       });
       
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to generate");
+      }
+
       setResponseMsg(`Successfully queued! Generating article...`);
       setCurrentTaskId(data.task_id);
       onNewGeneration(prompt);
     } catch (error) {
-      setResponseMsg("Error: Failed to reach backend.");
+      setResponseMsg(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -38,7 +50,15 @@ export default function Generator({ onNewGeneration }) {
     
     const checkStatus = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8001/api/v1/articles/${currentTaskId}`);
+        // Grab the token again for the polling request
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`http://127.0.0.1:8001/api/v1/articles/${currentTaskId}`, {
+          headers: {
+            "Authorization": `Bearer ${token}` // Show token to check status!
+          }
+        });
+        
         if (response.ok) {
           const data = await response.json();
           setArticleStatus(data);
@@ -72,7 +92,7 @@ export default function Generator({ onNewGeneration }) {
         {isLoading ? "Enqueuing task..." : "Generate Article"}
       </button>
 
-      {responseMsg && <div className="mt-4 p-4 bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-xl text-sm font-medium">✓ {responseMsg}</div>}
+      {responseMsg && <div className="mt-4 p-4 bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-xl text-sm font-medium">{responseMsg.includes('Error') ? '❌' : '✓'} {responseMsg}</div>}
 
       {currentTaskId && (
         <div className="mt-4 p-5 border border-slate-100 rounded-xl bg-slate-50/80">
