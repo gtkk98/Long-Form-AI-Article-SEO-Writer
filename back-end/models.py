@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -9,6 +9,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+
+    bio = Column(String, nullable=True)
+    profile_pic = Column(String, nullable=True)
+    cover_pic = Column(String, nullable=True)
+    settings = Column(JSON, nullable=True)
 
     # Establish a "One-to-Many" relationship: One user owns many articles
     articles = relationship("Article", back_populates="owner")
